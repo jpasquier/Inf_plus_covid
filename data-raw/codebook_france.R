@@ -46,6 +46,11 @@ cb2 <- do.call(rbind, lapply(cb0$Variable, function(x) {
   }
   return(r)
 }))
+if (any(!(grepl("^[0-9]+$", cb2$value)))) {
+  stop("check values")
+} else {
+  cb2$value <- as.integer(cb2$value)
+}
 
 # Codebook
 codebook_france <- list(variables = cb1, values = cb2)
