@@ -1,4 +1,6 @@
 *.rda
+*.rds
 *.pdf
 *.xlsx
+*.doc
 *.docx
