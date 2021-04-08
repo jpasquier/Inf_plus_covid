@@ -1,0 +1,256 @@
+---
+title: "Inf+Covid : Effets des modérateurs"
+subtitle: "Données : France"
+author: "Jérôme Pasquier, Unisanté, Lausanne"
+date: "`r format(Sys.time(), '%d.%m.%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: false
+---
+
+
+<!--
+     _          __                           _      _
+    (_) _ __   / _|   _     ___  ___ __   __(_)  __| |
+    | || '_ \ | |_  _| |_  / __|/ _ \\ \ / /| | / _` |
+    | || | | ||  _||_   _|| (__| (_) |\ V / | || (_| |
+    |_||_| |_||_|    |_|   \___|\___/  \_/  |_| \__,_|
+
+-->
+
+
+<!--
+Zoom function in rmarkdown html plot
+Source: https://stackoverflow.com/questions/56361986/
+-->
+
+```{css zoom-lib-src, echo = FALSE}
+script src = "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"
+```
+
+```{js zoom-jquery, echo = FALSE}
+ $(document).ready(function() {
+    $('body').prepend('<div class=\"zoomDiv\"><img src=\"\" class=\"zoomImg\"></div>');
+    // onClick function for all plots (img's)
+    $('img:not(.zoomImg)').click(function() {
+      $('.zoomImg').attr('src', $(this).attr('src')).css({width: '100%'});
+      $('.zoomDiv').css({opacity: '1', width: 'auto', border: '1px solid white', borderRadius: '5px', position: 'fixed', top: '50%', left: '50%', marginRight: '-50%', transform: 'translate(-50%, -50%)', boxShadow: '0px 0px 50px #888888', zIndex: '50', overflow: 'auto', maxHeight: '100%'});
+    });
+    // onClick function for zoomImg
+    $('img.zoomImg').click(function() {
+      $('.zoomDiv').css({opacity: '0', width: '0%'}); 
+    });
+  });
+```
+
+```{r setup, echo=FALSE, message=FALSE}
+
+library(knitr)
+library(parallel)
+library(labelled)
+library(rlang)
+library(dplyr)
+library(ggplot2)
+library(qqplotr)
+library(broom)
+library(xfun)
+library(writexl)
+
+# Options
+options(knitr.kable.NA = '', mc.cores = detectCores(), width = 100)
+opts_chunk$set(echo = FALSE)
+
+# Set working directory
+wd <- path.expand("~/Projects/LaSource/Ortoleva - Inf+covid")
+#setwd(wd)
+
+# Import preprocessed data
+dta <- readRDS(file.path(wd, "data/data_france.rds"))
+
+# Help function(s)
+seq_mod <- function(x) {
+  if (length(unique(x)) <= 10 ) {
+    sort(unique(x))
+  } else {
+    seq(min(x), max(x), length.out = 10)
+  }
+}
+
+```
+
+```{r}
+
+# Definition of the response variable
+y <- "WHOQOL_d2_s100"
+
+# Definition of the exposure variable
+x <- "PSS14_score"
+
+# Definition of the adjustement variables
+W <- c("Age", "Genre", "Expo_COVID")
+dta$Age <- to_factor(dta$Age)
+dta$Genre <- to_factor(dta$Genre)
+val_labels(dta$Expo_COVID) <-
+  setNames(val_labels(dta$Expo_COVID),
+           sub(" \\(.+", "", names(val_labels(dta$Expo_COVID))))
+dta$Expo_COVID <- to_factor(dta$Expo_COVID)
+
+# Definition of the moderators
+Z <- c("BienEtrPro_score", "BienEtrPro_score", "BC_Coping_actif",
+       "BC_Planification", "BC_Soutien_instru", "BC_Soutien_emotio",
+       "BC_Expr_sentiment", "BC_Reinterpr_posi", "BC_Acceptation", "BC_Deni",
+       "BC_Blame", "BC_Humour", "BC_Religion", "BC_Distraction",
+       "BC_Utili_substanc", "BC_Deseng_comport", "PTGI_SF_score",
+       "CD_RISC_score", "MSPSS_signif_other", "MSPSS_family", "MSPSS_friends",
+       "MSPSS_score", "COPSOQ_soutien_superieur", "COPSOQ_soutien_collegues",
+       "COPSOQ_satisf_qualite")
+
+```
+
+## Valeurs manquantes
+
+```{r}
+apply(is.na(dta[c(y, x, W, Z)]), 2, sum) %>%
+  {data.frame(Variable = names(.), `Nombre de valeurs manquantes` = .,
+              check.names = FALSE, stringsAsFactors = FALSE)} %>%
+  kable(row.names = FALSE)
+```
+
+## Corrélation entre les variables `r y` et `r x`
+
+```{r}
+subdta0 <- na.omit(dta[c(x, y)])
+fml0 <- as.formula(paste(y, "~", x))
+m0 <- do.call("lm", list(formula = fml0, data = quote(subdta0)))
+subdta1 <- na.omit(dta[c(x, y, W)])
+fml1 <- as.formula(paste(y, "~", x, "+", paste(W, collapse = " + ")))
+m1 <- do.call("lm", list(formula = fml1, data = quote(subdta1)))
+
+```
+
+```{r}
+fig <- list()
+fig$reg <- ggplot(m0$model, aes(x = !!sym(x), y = !!sym(y))) +
+  geom_point() +
+  geom_smooth(formula = y ~ x, method = lm) +
+  theme_classic()
+fig <- append(fig, lapply(list(qq0 = m0, qq1 = m1), function(m) {
+  p <- ggplot(data = data.frame(r = rstandard(m)), mapping = aes(sample = r)) +
+    stat_qq_band() +
+    stat_qq_line() +
+    stat_qq_point() +
+    labs(x = "Theoretical Quantiles", y = "Standardized Residuals",
+         title = "Normal Q-Q") +
+    theme_classic()
+}))
+```
+
+### Régressions {.tabset}
+
+#### Non ajustée
+
+Nombre d'observations considérées : `r nrow(subdta0)`
+
+```{r}
+summary(m0)
+f <- "/tmp/coef_without_moderator_unadjusted.xlsx"
+write_xlsx(tidy(m0), f)
+embed_file(f, text = "coefficients (xlsx)")
+f <- file.remove(f)
+```
+
+#### Ajustée
+
+Nombre d'observations considérées : `r nrow(subdta1)`
+
+```{r}
+summary(m1)
+f <- "/tmp/coef_without_moderator_adjusted.xlsx"
+write_xlsx(tidy(m1), f)
+embed_file(f, text = "coefficients (xlsx)")
+f <- file.remove(f)
+```
+
+### Graphiques {.tabset}
+
+#### Droite de régression (non ajustée)
+
+```{r}
+print(fig$reg)
+```
+
+#### Q-Q plot (non ajustée)
+
+```{r}
+print(fig$qq0)
+```
+
+#### Q-Q plot (ajustée)
+
+```{r}
+print(fig$qq1)
+```
+
+```{r}
+rm(f, fig, fml0, fml1, m0, m1)
+```
+
+
+<!-- ====================================================================== -->
+
+```{r}
+
+M <- mclapply(setNames(Z, Z), function(z) {
+  fml0 <- as.formula(paste(y, "~", x, "*", z))
+  subdta0 <- na.omit(dta[c(x, y, z)])
+  m0 <- do.call("lm", list(formula = fml0, data = quote(subdta0)))
+  fml1 <- as.formula(paste(y, "~", x, "*", z, "+", paste(W, collapse = " + ")))
+  subdta1 <- na.omit(dta[c(x, y, z, W)])
+  m1 <- do.call("lm", list(formula = fml1, data = quote(subdta1)))
+  fig <- list()
+  fig$reg <- ggplot(m0$model, aes(x = !!sym(x), y = !!sym(y))) +
+    geom_point() +
+    geom_smooth(formula = y ~ x, method = lm) +
+    theme_classic()
+  fig$int <- expand.grid(
+      m0$model[[x]] %>% {seq(min(.), max(.), length.out = 10^3)},
+      seq_mod(m0$model[[z]])
+    ) %>%
+    setNames(c(x, z)) %>%
+    {cbind(., predict(m0, .))} %>%
+    setNames(c(x, z, y)) %>%
+    mutate("{z}" := factor(round(!!sym(z), 2))) %>%
+    ggplot(aes(x = !!sym(x), y = !!sym(y), color = !!sym(z))) +
+    geom_line() +
+    theme_classic()
+  fig <- append(fig, lapply(list(qq0 = m0, qq1 = m1), function(m) {
+    p <- ggplot(data = data.frame(r = rstandard(m)), mapping = aes(sample = r)) +
+      stat_qq_band() +
+      stat_qq_line() +
+      stat_qq_point() +
+      labs(x = "Theoretical Quantiles", y = "Standardized Residuals",
+           title = "Normal Q-Q") +
+      theme_classic()
+  }))
+  list(m0 = m0, m1 = m1, fig = fig)
+})
+
+rmd_dir <- "/tmp/LaSoure_InfCovid_Rmd_Files"
+if (!dir.exists(rmd_dir)) dir.create(rmd_dir)
+rmd_files <- c()
+i <- 1
+for (z in names(M)) {
+  rmd_file <- file.path(rmd_dir, paste0(i, ".Rmd"))
+  rmd_files <- c(rmd_files, rmd_file)
+  i <- i + 1
+  cat(rmd_txt(z), file = rmd_file)
+}
+
+rm(i, rmd_file, rmd_dir, z)
+
+```
+
+```{r child = rmd_files, eval=TRUE}
+```

@@ -184,6 +184,55 @@ rm(V)
 # Preview
 sapply(dta[grep("^COPSOQ_[1-8]$", names(dta))], table)
 
+# COPSOQ dimensions...
+#
+# | dimension | variable | description
+# |===========|==========|====================================================|
+# | soutien_  | COPSOQ_1 | votre supérieur-e hiérarchique est-il/elle à       |
+# | superieur |          | disposé-e vous écouter au sujet de vos problèmes   |
+# |           |          | au travail ?                                       |
+# |-----------|----------|----------------------------------------------------|
+# | soutien_  | COPSOQ_2 | recevez-vous de l’aide et du soutien de votre      |
+# | superieur |          | supérieur-e hiérarchique ?                         |
+# |-----------|----------|----------------------------------------------------|
+# | soutien_  | COPSOQ_3 | votre supérieur-e hiérarchique vous dit-il/elle    |
+# | superieur |          | que vous faites du bon travail ?                   |
+# |-----------|----------|----------------------------------------------------|
+# | soutien_  | COPSOQ_4 | recevez-vous de l’aide et du soutien de vos        |
+# | collegues |          | collègues ?                                        |
+# |-----------|----------|----------------------------------------------------|
+# | soutien_  | COPSOQ_5 | vos collègues se montrent-ils à l’écoute de vos    |
+# | collegues |          | problèmes au travail ?                             |
+# |-----------|----------|----------------------------------------------------|
+# | soutien_  | COPSOQ_6 | vos collègues vous disent-ils/elles que vous       |
+# | collegues |          | faites du bon travail ?                            |
+# |-----------|----------|----------------------------------------------------|
+# | satisf_   | COPSOQ_7 | Etes-vous satisfait-e de la qualité du travail que |
+# | qualite   |          | vous pouvez fournir dans votre hôpital / clinique? |
+# |-----------|----------|----------------------------------------------------|
+# | satisf_   | COPSOQ_8 | Dans quelle mesure estimez-vous qu’il vous est     |
+# | qualite   |          | possible de fournir un travail de bonne qualité ?  |
+#
+# ... and scoring
+#
+# | variables    | scoring                                                    |
+# |==============|============================================================|
+# | COPSOQ_[1-6] | Always (100); Often (75); Sometimes (50); Seldom (25);     |
+# |              | Never/hardly ever (0)                                      |
+# |--------------|------------------------------------------------------------|
+# | COPSOQ_[7-8] | To a very large extent (100); To a large extent (75);      |
+# |              | Somewhat (50); To a small extent (25);                     |
+# |              | To a very small extent (0)                                 |
+#
+dta$COPSOQ_soutien_superieur <-
+  apply(sapply(dta[paste0("COPSOQ_", 1:3)], function(x) pmax(5 - x, 0) * 25),
+        1, mean)
+dta$COPSOQ_soutien_collegues <-
+  apply(sapply(dta[paste0("COPSOQ_", 4:6)], function(x) pmax(5 - x, 0) * 25),
+        1, mean)
+dta$COPSOQ_satisf_qualite <-
+  apply(sapply(dta[paste0("COPSOQ_", 7:8)], function(x) (5 - x) * 25), 1, mean)
+
 # -------------------------------- Save data -------------------------------- #
 
 saveRDS(dta, file = "data/data_france.rds", compress = "xz")
