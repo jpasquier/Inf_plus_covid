@@ -98,13 +98,13 @@ val_labels(dta$Expo_COVID) <-
 dta$Expo_COVID <- to_factor(dta$Expo_COVID)
 
 # Definition of the moderators
-Z <- c("BienEtrPro_score", "BienEtrPro_score", "BC_Coping_actif",
-       "BC_Planification", "BC_Soutien_instru", "BC_Soutien_emotio",
-       "BC_Expr_sentiment", "BC_Reinterpr_posi", "BC_Acceptation", "BC_Deni",
-       "BC_Blame", "BC_Humour", "BC_Religion", "BC_Distraction",
-       "BC_Utili_substanc", "BC_Deseng_comport", "PTGI_SF_score",
-       "CD_RISC_score", "MSPSS_signif_other", "MSPSS_family", "MSPSS_friends",
-       "MSPSS_score", "COPSOQ_soutien_superieur", "COPSOQ_soutien_collegues",
+Z <- c("BienEtrPro_score", "BC_Coping_actif", "BC_Planification",
+       "BC_Soutien_instru", "BC_Soutien_emotio", "BC_Expr_sentiment",
+       "BC_Reinterpr_posi", "BC_Acceptation", "BC_Deni", "BC_Blame",
+       "BC_Humour", "BC_Religion", "BC_Distraction", "BC_Utili_substanc",
+       "BC_Deseng_comport", "PTGI_SF_score", "CD_RISC_score",
+       "MSPSS_signif_other", "MSPSS_family", "MSPSS_friends", "MSPSS_score",
+       "COPSOQ_soutien_superieur", "COPSOQ_soutien_collegues",
        "COPSOQ_satisf_qualite")
 
 ```
@@ -127,7 +127,6 @@ m0 <- do.call("lm", list(formula = fml0, data = quote(subdta0)))
 subdta1 <- na.omit(dta[c(x, y, W)])
 fml1 <- as.formula(paste(y, "~", x, "+", paste(W, collapse = " + ")))
 m1 <- do.call("lm", list(formula = fml1, data = quote(subdta1)))
-
 ```
 
 ```{r}
@@ -210,7 +209,7 @@ M <- mclapply(setNames(Z, Z), function(z) {
   subdta1 <- na.omit(dta[c(x, y, z, W)])
   m1 <- do.call("lm", list(formula = fml1, data = quote(subdta1)))
   fig <- list()
-  fig$reg <- ggplot(m0$model, aes(x = !!sym(x), y = !!sym(y))) +
+  fig$reg <- ggplot(m0$model, aes(x = !!sym(z), y = !!sym(y))) +
     geom_point() +
     geom_smooth(formula = y ~ x, method = lm) +
     theme_classic()
