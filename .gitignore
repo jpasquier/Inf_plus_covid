@@ -5,3 +5,7 @@
 *.doc
 *.docx
 *.html
+*.txz
+*.xz
+*.zip
+sessionInfo.txt

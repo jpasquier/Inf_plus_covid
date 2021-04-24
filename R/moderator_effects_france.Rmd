@@ -1,13 +1,20 @@
 ---
 title: "Inf+Covid : Effets des modérateurs"
-subtitle: "Données : France"
+subtitle: |
+  | Données : France
+  | Variable réponse : `r params$outcome`
+  | `r paste("Mode d'exercice :", params$mode_exerc)`
 author: "Jérôme Pasquier, Unisanté, Lausanne"
-date: "`r format(Sys.time(), '%d.%m.%Y')`"
+date: "`r params$date`"
 output:
   html_document:
     toc: true
     toc_depth: 2
     toc_float: false
+params:
+    outcome: NA
+    mode_exerc: NA
+    date: ""
 ---
 
 
@@ -69,6 +76,13 @@ wd <- path.expand("~/Projects/LaSource/Ortoleva - Inf+covid")
 # Import preprocessed data
 dta <- readRDS(file.path(wd, "data/data_france.rds"))
 
+# Select observations
+if (params$mode_exerc != "Tous") {
+  b <- !is.na(dta$Mode_exerc) & to_factor(dta$Mode_exerc) == params$mode_exerc
+  dta <- dta[b, ]
+  rm(b)
+}
+
 # Help function(s)
 seq_mod <- function(x) {
   if (length(unique(x)) <= 10 ) {
@@ -83,7 +97,10 @@ seq_mod <- function(x) {
 ```{r}
 
 # Definition of the response variable
-y <- "WHOQOL_d2_s100"
+y <- params$outcome
+
+# Recoding of the response variable
+if (y %in% c("WHOQOL_1", "WHOQUOL_2")) dta[[y]] <- as.numeric(dta[[y]])
 
 # Definition of the exposure variable
 x <- "PSS14_score"
@@ -98,14 +115,16 @@ val_labels(dta$Expo_COVID) <-
 dta$Expo_COVID <- to_factor(dta$Expo_COVID)
 
 # Definition of the moderators
-Z <- c("BienEtrPro_score", "BC_Coping_actif", "BC_Planification",
-       "BC_Soutien_instru", "BC_Soutien_emotio", "BC_Expr_sentiment",
-       "BC_Reinterpr_posi", "BC_Acceptation", "BC_Deni", "BC_Blame",
-       "BC_Humour", "BC_Religion", "BC_Distraction", "BC_Utili_substanc",
-       "BC_Deseng_comport", "PTGI_SF_score", "CD_RISC_score",
-       "MSPSS_signif_other", "MSPSS_family", "MSPSS_friends", "MSPSS_score",
-       "COPSOQ_soutien_superieur", "COPSOQ_soutien_collegues",
-       "COPSOQ_satisf_qualite")
+Z <- c("BC_Coping_actif", "BC_Planification", "BC_Soutien_instru",
+       "BC_Soutien_emotio", "BC_Expr_sentiment", "BC_Reinterpr_posi",
+       "BC_Acceptation", "BC_Deni", "BC_Blame", "BC_Humour", "BC_Religion",
+       "BC_Distraction", "BC_Utili_substanc", "BC_Deseng_comport",
+       "PTGI_SF_score", "CD_RISC_score", "MSPSS_signif_other", "MSPSS_family",
+       "MSPSS_friends", "MSPSS_score", "COPSOQ_soutien_superieur",
+       "COPSOQ_soutien_collegues", "COPSOQ_satisf_qualite")
+if (params$mode_exerc %in% c("Libéral", "Autre")) {
+  Z <- Z[!grepl("^COPSOQ_", Z)]
+}
 
 ```
 
@@ -196,7 +215,6 @@ print(fig$qq1)
 rm(f, fig, fml0, fml1, m0, m1)
 ```
 
-
 <!-- ====================================================================== -->
 
 ```{r}
@@ -225,7 +243,7 @@ M <- mclapply(setNames(Z, Z), function(z) {
     geom_line() +
     theme_classic()
   fig <- append(fig, lapply(list(qq0 = m0, qq1 = m1), function(m) {
-    p <- ggplot(data = data.frame(r = rstandard(m)), mapping = aes(sample = r)) +
+    p <- ggplot(data.frame(r = rstandard(m)), aes(sample = r)) +
       stat_qq_band() +
       stat_qq_line() +
       stat_qq_point() +
@@ -252,4 +270,12 @@ rm(i, rmd_file, rmd_dir, z)
 ```
 
 ```{r child = rmd_files, eval=TRUE}
+```
+
+<!-- ====================================================================== -->
+
+## Session infos
+
+```{r}
+print(sessionInfo(), locale = FALSE)
 ```
